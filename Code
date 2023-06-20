@@ -1,0 +1,689 @@
+import 'package:email_validator/email_validator.dart';
+import 'package:flutter/material.dart';
+import 'package:sql_conn/sql_conn.dart';
+import 'dart:convert';
+import 'dart:async';
+
+void main() => runApp(MyApp());
+var em;
+var data3;
+var data4;
+var data5;
+var alldata;
+final fields=['id','name','age','experience','salary','department_name','designation_name'];
+Future<void> getData() async {
+  var email2=em;
+  print("email"+email2);
+  final query="SELECT * FROM employee1 WHERE EMAIL='$email2';";
+
+  final data2 = await SqlConn.readData(query);
+  data3=jsonDecode(data2);
+  print(data3.length);
+  print(data3);
+  var dpid=data3[0]['dept_id'];
+  var dsid=data3[0]['desg_id'];
+  final query1="SELECT * FROM department WHERE DEPT_ID=$dpid;";
+  final query2="SELECT * FROM designation WHERE DESG_ID=$dsid;";
+  var da1=await SqlConn.readData(query1);
+  var da2=await SqlConn.readData(query2);
+  data4=jsonDecode(da1);
+  data5=jsonDecode(da2);
+  print(data5);
+  print(data5.length);
+
+}
+Future<void> getData1() async {
+  final query="SELECT * FROM employee1";
+
+  final dat = await SqlConn.readData(query);
+  alldata=jsonDecode(dat);
+  print(alldata);
+  print(alldata.length);
+  print(alldata[0]['name']);
+
+}
+class MyApp extends StatelessWidget {
+  const MyApp({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return  MaterialApp(
+      theme: ThemeData(primarySwatch:Colors.green),
+        home:Login(
+
+        )
+    );
+  }
+}
+
+class Login extends StatefulWidget  {
+  const Login({Key? key}) : super(key: key);
+
+  @override
+  State<Login> createState() => _LoginState();
+}
+
+
+class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
+
+  final  email=new TextEditingController();
+  final password=new TextEditingController();
+  final  email1=new TextEditingController();
+  final password1=new TextEditingController();
+  final formKey=GlobalKey<FormState>();
+  final formKey1=GlobalKey<FormState>();
+  late TabController _controler;
+  var data;
+  var data1;
+  Future<void> connectToDatabase() async {
+       await SqlConn.connect(
+          ip: "172.16.65.20",
+          port: "1433",
+          databaseName: "21cs049",
+          username: "dbms21cs049",
+          password: "rit@1234");
+      print(SqlConn.isConnected);
+
+  }
+
+  Future<void> login(String email,String password) async {
+    em=email;
+    final query= "SELECT * FROM login WHERE EMAIL = '$email' AND PASSWORD ='$password';";
+
+
+       data = await SqlConn.readData(query);
+       data1=jsonDecode(data);
+
+
+      if (data1.length > 0 && data1.length==1) {
+
+        getData();
+        getData1();
+        ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(
+            content:Text("Logging in..."),
+            duration: const Duration(seconds: 1),
+
+
+        ),);
+        await Future.delayed(const Duration(seconds: 2));
+        const Center(child: CircularProgressIndicator(
+          value: 1.0,
+          color: Colors.black,
+        ));
+
+          Navigator.pushReplacement(
+              this.context,
+              MaterialPageRoute(
+                  builder:(context)=>Instructions()));
+
+
+      } else {
+          ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(
+              content:Text("Invalid email or password"),
+            duration: const Duration(seconds: 1),
+          ),
+          );
+      }
+
+
+  }
+  Future<void> signin(String email,String password) async {
+
+    final query0 = "SELECT * FROM login WHERE EMAIL = '$email';";
+    final query1 = "INSERT INTO login VALUES('$email','$password');";
+    final query2 = "SELECT * FROM login WHERE PASSWORD = '$password';";
+
+      final result = await SqlConn.readData(query0);
+    final result2 = await SqlConn.readData(query2);
+      var result1=jsonDecode(result);
+    var result3=jsonDecode(result2);
+
+      if (result1.length ==0 && result3.length==0) {
+         await SqlConn.writeData(query1);
+         ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(
+             content:Text("Sign upped Successfully"),
+           duration: const Duration(seconds: 1),
+         ));
+      } else if(result1.length==1){
+        print(result1);
+        print(result1.length);
+        ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(
+          content:Text("User already exist"),
+          duration: const Duration(seconds: 1),
+        ));
+      }
+      else if(result3.length==1){
+        ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(
+          content:Text("Password already exist"),
+          duration: const Duration(seconds: 1),
+        ));
+      }
+  }
+
+
+
+  @override
+  void initState(){
+    super.initState();
+    connectToDatabase();
+    _controler=TabController(length: 2, vsync: this,initialIndex: 0);
+  }
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.greenAccent,
+      appBar: AppBar(
+        title: Text("Employee Management System"),
+        backgroundColor: Colors.black,
+        bottom: TabBar(
+          controller: _controler,
+          tabs: [
+            Row(
+                children:[
+                  Icon(Icons.account_box_outlined),
+                  Text("    Sign in",style: TextStyle(fontSize: 20),),
+                ]
+            ),
+           Row(
+              children: [
+            Icon(Icons.login_rounded),
+            Text("    Log in",style: TextStyle(fontSize: 20)),
+            ]
+           ),
+
+          ],),
+
+      ),
+      body: TabBarView(
+        controller: _controler,
+        children: [
+          ListView(
+            shrinkWrap: true,
+            children:[
+              Icon(Icons.account_circle_sharp,size: 200,),
+              Form(
+                key: formKey1,
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal:20,vertical:40),
+                          child:Text("E-mail       ",style: TextStyle(fontSize: 20),),
+                        ),
+                        Expanded(
+                          child:TextFormField(
+                            controller: email1,
+                            validator: (value){
+                              if(EmailValidator.validate(email1.text)==false) {
+                                return"Please enter a valid email";
+                              }
+                            },
+                            style: TextStyle(color: Colors.black),
+                            decoration: InputDecoration(
+                              hintText: 'Enter your email...',hintStyle: TextStyle(color: Colors.grey[20]),
+                              enabledBorder: OutlineInputBorder(
+                                borderSide: BorderSide(
+                                    width: 3, color: Colors.black),
+                              ),
+                            ),
+                          ),
+                        ),
+
+                      ],
+                    ),
+                    Row(
+                      children: [
+
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal:20,vertical:00),
+                          child:Text("Password",style: TextStyle(fontSize: 20),),
+                        ),
+                        Expanded(
+                          child:TextFormField(
+                            controller: password1,
+                            validator: (value){
+                              if ((value!.isNotEmpty && value.length<5)|| value.isEmpty){
+                                return "Please set a strong password";
+                              }
+                            },
+                            obscureText: true,
+                            style: TextStyle(color: Colors.black),
+                            decoration: InputDecoration(
+                              hintText: 'Enter your password',hintStyle: TextStyle(color: Colors.grey[20]),
+                              enabledBorder: OutlineInputBorder(
+                                borderSide: BorderSide(
+                                    width: 3, color: Colors.black),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],              ),
+              ),
+              Container(
+                child: ButtonTheme(child: TextButton(
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.blue,
+                    ),
+                    onPressed: () {
+                      if(formKey1.currentState!.validate()){
+                        signin(email1.text, password1.text);
+                        email1.clear();
+                        password1.clear();
+                      }
+                    },
+                    child: const Padding(padding: EdgeInsets.all(20),
+                      child: Text('Submit',style: TextStyle(fontSize: 20,color: Colors.black),),
+                    )
+                ),
+                ),
+              ),
+            ],
+          ),
+          ListView(
+            shrinkWrap: true,
+            children: [
+              Icon(Icons.account_circle_sharp,size: 200,),
+              Form(
+                  key: formKey,
+                  child:Column(
+                    children: [
+                      Row(
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal:20,vertical:40),
+                            child:Text("E-mail       ",style: TextStyle(fontSize: 20),),
+                          ),
+                          Expanded(
+                            child:TextFormField(
+                              controller: email,
+                              validator: (value){
+                                if(EmailValidator.validate(email.text)==false) {
+                                  return"Please enter a valid email";
+                                }
+                              },
+                              style: TextStyle(color: Colors.black),
+                              decoration: InputDecoration(
+                                hintText: 'Enter your email...',hintStyle: TextStyle(color: Colors.grey[20]),
+                                enabledBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(
+                                      width: 3, color: Colors.black),
+                                ),
+                              ),
+                            ),
+                          ),
+
+                        ],
+                      ),
+                      Row(
+                        children: [
+
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal:20,vertical:00),
+                            child:Text("Password",style: TextStyle(fontSize: 20),),
+                          ),
+                          Expanded(
+                            child:TextFormField(
+                              controller: password,
+                              validator: (value){
+                                if ((value!.isNotEmpty && value.length<5) || value.isEmpty){
+                                  return "Please enter the pasword";
+                                }
+                              },
+                              obscureText: true,
+                              style: TextStyle(color: Colors.black),
+                              decoration:InputDecoration(
+                                hintText: 'Enter your password',hintStyle: TextStyle(color: Colors.grey[20]),
+                                enabledBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(
+                                      width: 3, color: Colors.black),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  )
+              ),
+
+              Container(
+                child: ButtonTheme(child: TextButton(
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.blue,
+                    ),
+                    onPressed: () {
+                      if(formKey.currentState!.validate() && password.value !=null && email.value != null ){
+                        login(email.text, password.text);
+                        email.clear();
+                        password.clear();
+                      }
+                    },
+                    child: const Padding(padding: EdgeInsets.all(20),
+                      child: Text('Submit',style: TextStyle(fontSize: 20,color: Colors.black),),
+                    )
+                ),
+                ),
+              ),
+            ],
+          ),
+
+        ],
+      ),
+
+
+    );
+  }
+}
+class Instructions extends StatefulWidget {
+  const Instructions({Key? key}) : super(key: key);
+
+  @override
+  State<Instructions> createState() => _InstructionsState();
+}
+
+class _InstructionsState extends State<Instructions> {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.greenAccent,
+      appBar:AppBar(
+        title: Text("Instructions",style: TextStyle(fontSize: 20),),
+
+
+
+        backgroundColor: Colors.black,
+      ),
+
+      body: ListView(
+        children: [
+          Row(
+            children: [
+              Text("\n\n 1.This is the application to maintain \n     the data of the employees by employees.\n",style: TextStyle(fontSize: 20),)
+            ],
+          ),
+          Row(
+            children: [
+              Text(" 2. In this application,the employees can\n     create,edit and delete their data.\n",style: TextStyle(fontSize: 20))
+            ],
+          ),
+          Row(
+            children: [
+              Text(" 3. Employees can see the other employee\n     name,department_id and designation_id.\n",style: TextStyle(fontSize: 20),)
+            ],
+          ),
+          Row(
+            children: [
+              Text(" 4. You cannot create,edit and delete other\n      employee data.\n",style: TextStyle(fontSize: 20),)
+            ],
+          ),
+          Row(
+            children: [
+              Text(" 5. If you new to this application,you should\n     create your data.\n",style: TextStyle(fontSize: 20),)
+            ],
+          ),
+          Row(
+            children: [
+              Text(" 6. You cannot edit department_id and\n     designation_id.\n",style: TextStyle(fontSize: 20),)
+            ],
+          ),
+          Row(
+            children: [
+              Padding(padding: EdgeInsets.symmetric(horizontal: 140),
+             child: TextButton(
+                  onPressed: () {
+                    Navigator.pushReplacement(
+                        this.context,
+                        MaterialPageRoute(
+                            builder:(context)=>Home()));
+                  },
+                  child: Text("Get start",style: TextStyle(fontSize: 20,color: Colors.black),),
+
+                ),
+                ),
+
+            ],
+          ),
+          Row(
+            children: [
+              Padding(padding: EdgeInsets.symmetric(horizontal: 140),
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.pushReplacement(
+                        this.context,
+                        MaterialPageRoute(
+                            builder:(context)=>Login()));
+                  },
+                  child: Text(" Log out",style: TextStyle(fontSize: 20,color: Colors.black),),
+
+                ),
+              ),
+
+            ],
+          )
+        ],
+
+      ),
+    );
+  }
+}
+
+
+class Home extends StatefulWidget {
+  const Home({Key? key}) : super(key: key);
+
+  @override
+  State<Home> createState() => _HomeState();
+}
+
+
+class _HomeState extends State<Home> with SingleTickerProviderStateMixin{
+  final  id_control=new TextEditingController();
+  final name_control=new TextEditingController();
+  final email_control=new TextEditingController();
+  final age_control=new TextEditingController();
+  final exp_control=new TextEditingController();
+  final sal_control=new TextEditingController();
+  final dept_id_control=new TextEditingController();
+  final desg_id_control=new TextEditingController();
+  final dept_name_control=new TextEditingController();
+  final desg_name_control=new TextEditingController();
+  final newData_control=new TextEditingController();
+  final f_control=new TextEditingController();
+  final formKey2=GlobalKey<FormState>();
+  final formKey3=GlobalKey<FormState>();
+
+  Future<void> saveDetails(String id,String name,String email,String age,String experience,String salary,String dept_id,String desg_id,String dept_name,String desg_name) async {
+      final query="SELECT * FROM employee1 WHERE EMAIL='$email'; ";
+      final query5="SELECT * FROM department WHERE DEPT_ID='$dept_id' OR DEPT_NAME='$dept_name';";
+      final query6="SELECT * FROM designation WHERE DESG_ID='$desg_id' OR DESG_NAME='$desg_name';";
+      var d1=await SqlConn.readData(query);
+      var d2=await SqlConn.readData(query5);
+      var d3=await SqlConn.readData(query6);
+      var da1=jsonDecode(d1);
+      var da2=jsonDecode(d2);
+      var da3=jsonDecode(d3);
+      print(da1.length);
+      print(da2.length);
+      print(da3.length);
+      if(da1.length==0 && da2.length==0) {
+        final query3 = "INSERT INTO department VALUES('$dept_id','$dept_name');";
+        await SqlConn.writeData(query3);
+      }
+      if(da1.length==0 && da3.length==0) {
+        final query4 = "INSERT INTO designation VALUES('$desg_id','$desg_name');";
+        await SqlConn.writeData(query4);
+      }
+      if(da1.length==0) {
+        final query2 = "INSERT INTO employee1 VALUES('$id','$name','$email','$age','$experience','$salary','$dept_id','$desg_id');";
+        await SqlConn.writeData(query2);
+      }
+      if(da1.length==1){
+        ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(
+            content: Text("You can't create more than one!!!"),
+          duration: const Duration(seconds: 1),
+        ),
+        );
+      }
+      getData();
+      getData1();
+      ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(
+          content: Text("Your data saved Successfully"),
+          duration:const Duration(seconds: 2)
+      ),
+      );
+      await Future.delayed(const Duration(seconds: 3));
+      Navigator.pushReplacement(
+          this.context,
+          MaterialPageRoute(
+              builder: (context) => Home()));
+
+
+
+  }
+
+  Future<void> Rename(String f,String ne) async{
+    var new1=ne;
+    f=f.toUpperCase();
+    if(f=='ID') {
+      final query = "UPDATE employee1 SET ID='$new1' WHERE EMAIL='$em';";
+      await SqlConn.writeData(query);
+    }
+    if(f=='NAME') {
+      final query = "UPDATE employee1 SET NAME='$new1' WHERE EMAIL='$em';";
+      await SqlConn.writeData(query);
+    }
+    if(f=='AGE') {
+      final query = "UPDATE employee1 SET AGE='$new1' WHERE EMAIL='$em';";
+      await SqlConn.writeData(query);
+    }
+    if(f=='EXPERIENCE') {
+      final query = "UPDATE employee1 SET EXPERIENCE='$new1' WHERE EMAIL='$em';";
+      await SqlConn.writeData(query);
+    }
+    if(f=='SALARY') {
+      final query = "UPDATE employee1 SET SALARY='$new1' WHERE EMAIL='$em';";
+      await SqlConn.writeData(query);
+    }
+    if(f=='DEPARTMENT_NAME') {
+      final query = "UPDATE department SET DEPT_NAME='$new1' WHERE DEPT_NAME IN(SELECT DEPT_NAME FROM employee1 WHERE EMAIL='$em');";
+      await SqlConn.writeData(query);
+    }
+    if(f=='DESIGNATION_NAME') {
+      final query = "UPDATE designation SET DESG_NAME='$new1' WHERE DESG_NAME IN (SELECT DESG_NAME FROM employee1 WHERE EMAIL='$em');";
+      await SqlConn.writeData(query);
+    }
+
+    getData();
+    getData1();
+    ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(
+      content:Text("Updated successfully.."),
+      duration: const Duration(seconds: 2),
+    ));
+    await Future.delayed(Duration(seconds: 2));
+    Navigator.pushReplacement(
+        this.context,
+        MaterialPageRoute(
+            builder:(context)=>Home()));
+  }
+
+  Future<void> delete() async {
+
+    final query0 = "DELETE FROM employee1 WHERE EMAIL='$em';";
+
+    await SqlConn.writeData(query0);
+    getData();
+    getData1();
+      ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(
+        content:Text("Delated successfully.."),
+        duration: const Duration(seconds: 2),
+      ));
+    await Future.delayed(const Duration(seconds: 3));
+    Navigator.pushReplacement(
+        this.context,
+        MaterialPageRoute(
+            builder:(context)=>Home()));
+
+
+  }
+
+
+  @override
+
+  late TabController _controler1;
+  void initState(){
+    super.initState();
+    _controler1=TabController(length: 4, vsync: this,initialIndex: 0);
+  }
+
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.greenAccent,
+      appBar: AppBar(
+        title: Text("Employee Management System"),
+        backgroundColor: Colors.black,
+        bottom: TabBar(
+          controller: _controler1, tabs: [
+            Row(
+              children:[
+
+          Text("Create",style: TextStyle(fontSize: 20),),
+          ]
+        ),
+          Row(
+            children:[
+          Icon(Icons.edit_attributes),
+          Text(" Edit",style: TextStyle(fontSize: 20),),
+          ]
+          ),
+          Row(
+            children:[
+          Icon(Icons.view_array_outlined),
+          Text("View",style: TextStyle(fontSize: 20),),
+          ]
+          ),
+          Row(
+            children:[
+
+          Text("Details",style: TextStyle(fontSize: 20),),
+              ]
+          ),
+
+        ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _controler1,
+        children: [
+          ListView(
+            shrinkWrap: true,
+            children: [
+              Form(
+                key: formKey2,
+                child:Column(
+                  children: [
+                    Row(
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal:20,vertical:40),
+                          child:Text("Id                ",style: TextStyle(fontSize: 20),),
+                        ),
+                        Expanded(
+                          child:TextFormField(
+                            controller:id_control,
+                            validator: (value){
+                              if (value!.isEmpty){
+                                return "Please enter your Id";
+                              }
+                            },
+                            style: TextStyle(color: Colors.black),
+                            decoration: InputDecoration(
+                              hintText: 'Enter your Id',hintStyle: TextStyle(color: Colors.grey[20]),
+                              enabledBorder: OutlineInputBorder(
+                                borderSide: BorderSide(
+                                    width: 3, color: Colors.black),
+                              )
